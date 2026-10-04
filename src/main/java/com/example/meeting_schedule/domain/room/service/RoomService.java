@@ -18,6 +18,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
@@ -67,13 +68,26 @@ public class RoomService {
     public RoomResponse getRoom(String roomId) {
 
         Room room = findActiveRoom(roomId);
+        List<Participant> participants =
+                participantRepository.findByRoom_Id(room.getId());
 
-        List<Participant> participants = participantRepository.findByRoom_Id(room.getId());
+        List<AvailableDate> availableDates =
+                availableDateRepository.findByParticipant_Room_Id(room.getId());
+
+        Map<Long, List<AvailableDate>> availableDatesByParticipant =
+                availableDates.stream()
+                        .collect(Collectors.groupingBy(
+                                availableDate -> availableDate.getParticipant().getId()
+                        ));
+
         List<ParticipantResponse> participantResponse = participants.stream()
-                .map(p -> {
-                    List<AvailableDate> availableDates = availableDateRepository.findByParticipant_Id(p.getId());
-                    return new ParticipantResponse(p, availableDates);
-                })
+                .map(participant -> new ParticipantResponse(
+                        participant,
+                        availableDatesByParticipant.getOrDefault(
+                                participant.getId(),
+                                List.of()
+                        )
+                ))
                 .collect(Collectors.toList());
 
         return new RoomResponse(room, participantResponse);

@@ -72,17 +72,18 @@ public class ParticipantService {
         if(participants.isEmpty()) {
             return null;
         }
+        // 방에 속한 모든 참여자의 가능한 날짜를 한 번에 조회
+        List<AvailableDate> availableDates =
+                availableDateRepository.findByParticipant_Room_Id(roomId);
 
-        // Map<날짜, 가능한 참여자 이름 목록> 형태로 만들기
+        // Map<날짜, 가능한 참여자 이름 목록>
         Map<LocalDate, List<String>> dateMap = new HashMap<>();
 
-        // 모든 참여자의 날짜를 순회
-        participants.forEach(participant -> {
-            List<AvailableDate> dates = availableDateRepository.findByParticipant_Id(participant.getId());
-            dates.forEach(date -> {
-                dateMap.computeIfAbsent(date.getDate(), k -> new ArrayList<>())
-                        .add(participant.getName());
-            });
+        availableDates.forEach(availableDate -> {
+            dateMap.computeIfAbsent(
+                    availableDate.getDate(),
+                    key -> new ArrayList<>()
+            ).add(availableDate.getParticipant().getName());
         });
 
         List<ResultDateResponse> results = dateMap.entrySet().stream()
@@ -93,8 +94,12 @@ public class ParticipantService {
                         .allAvailable(entry.getValue().size() == participants.size())
                         .build())
                 .sorted(Comparator
-                        .comparing(ResultDateResponse::isAllAvailable).reversed()
-                        .thenComparing(ResultDateResponse::getAvilableCount, Comparator.reverseOrder()))
+                        .comparing(ResultDateResponse::isAllAvailable)
+                        .reversed()
+                        .thenComparing(
+                                ResultDateResponse::getAvilableCount,
+                                Comparator.reverseOrder()
+                        ))
                 .collect(Collectors.toList());
 
         return ResultResponse.builder()
