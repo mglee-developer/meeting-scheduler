@@ -33,14 +33,14 @@ public class RoomService {
     // 방 생성
     @Transactional
     public RoomResponse createRoom(RoomRequest request) {
-        LocalDate today = LocalDate.now();
 
-        // endDate까지 남은 일수
-        long daysUntilExpiry = ChronoUnit.DAYS.between(today, request.getEndDate());
-        // 날짜 검증 추가
-        if(daysUntilExpiry <= 0) {
-            throw ErrorCode.INVALID_DATE_RANGE.toException();
-        }
+        // 날짜 범위 검증
+        validateDateRange(request.getStartDate(), request.getEndDate());
+
+        // Redis TTL 계산
+        long daysUntilExpiry = ChronoUnit.DAYS.between(
+                LocalDate.now(), request.getEndDate()
+        ) + 1;
 
         Room room = Room.builder()
                 .title(request.getTitle())
@@ -61,6 +61,20 @@ public class RoomService {
 
         // 방 생성 시, 참여자는 빈 리스트
         return new RoomResponse(savedRoom, List.of());
+    }
+
+    private void validateDateRange(LocalDate startDate, LocalDate endDate) {
+        LocalDate today = LocalDate.now();
+
+        // 시작일은 종료일보다 늦을 수 없음
+        if(startDate.isAfter(endDate)) {
+            throw ErrorCode.INVALID_DATE_RANGE.toException();
+        }
+
+        // 이미 종료된 일정은 생성할 수 없음
+        if(endDate.isBefore(today)) {
+            throw ErrorCode.INVALID_DATE_RANGE.toException();
+        }
     }
 
     // 방 조회
