@@ -40,17 +40,21 @@ public class ParticipantService {
             }
         }
 
-        boolean idDuplicated = participantRepository.existsByRoom_IdAndName(roomId, request.getParticipantName());
+        Optional<Participant> existingParticipant = participantRepository.findByRoom_IdAndName(roomId, request.getParticipantName());
 
-        Participant saved = idDuplicated
-                ? participantRepository.findByRoom_IdAndName(roomId, request.getParticipantName())
-                    .orElseThrow(ErrorCode.PARTICIPANT_NOT_FOUND::toException)
-                : participantRepository.save(Participant.builder()
-                                .room(room)
-                                .name(request.getParticipantName())
-                                .build());
-        if(idDuplicated) {
+        Participant saved;
+        if(existingParticipant.isPresent()) {
+            saved = existingParticipant.get();
+            // 기존 가능한 날짜 삭제
             availableDateRepository.deleteByParticipant_Id(saved.getId());
+        } else {
+            // 최초 참여 -> 새로운 참여자 생성
+            saved = participantRepository.save(
+                    Participant.builder()
+                            .room(room)
+                            .name(request.getParticipantName())
+                            .build()
+            );
         }
 
         List<AvailableDate> dates = request.getAvailableDates().stream()

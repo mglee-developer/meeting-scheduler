@@ -8,6 +8,5 @@ import java.util.Optional;
 
 public interface ParticipantRepository extends JpaRepository<Participant, Long> {
     List<Participant> findByRoom_Id(String roomId);
-    boolean existsByRoom_IdAndName(String roomId, String name);
     Optional<Participant> findByRoom_IdAndName(String roomId, String name);
 }

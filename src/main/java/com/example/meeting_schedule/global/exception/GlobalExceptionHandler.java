@@ -1,5 +1,6 @@
 package com.example.meeting_schedule.global.exception;
 
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -12,6 +13,20 @@ public class GlobalExceptionHandler {
         return ResponseEntity
                 .status(e.getStatus())
                 .body(new ErrorResponse(e.getCode(), e.getMessage()));
+    }
+
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    public ResponseEntity<ErrorResponse> handleDataIntegrityViolationException(
+            DataIntegrityViolationException e
+    ) {
+        ErrorCode errorCode = ErrorCode.DUPLICATE_PARTICIPANT;
+
+        return ResponseEntity
+                .status(errorCode.getStatus())
+                .body(new ErrorResponse(
+                        errorCode.getCode(),
+                        errorCode.getMessage()
+                ));
     }
 
     // Validation 예외 처리 (@Valid 실패)
