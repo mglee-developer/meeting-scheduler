@@ -109,13 +109,38 @@ public class RoomService {
 
     // 방 조회, Redis 만료확인
     private Room findActiveRoom(String roomId) {
-        // 만료된 방인지 확인
-        boolean isActive = redisTemplate.opsForValue().get("room:" + roomId) != null;
-        if(!isActive) {
+        // DB에서 실제 방 존재 여부 확인
+        Room room = roomRepository.findById(roomId)
+                .orElseThrow(ErrorCode.ROOM_NOT_FOUND::toException);
+
+        String redisKey = "room:" + roomId;
+
+        // Redis에 활성화 정보가 존재하는 경우 바로 정상 처리
+        Boolean isActive = redisTemplate.hasKey(redisKey);
+
+        if (Boolean.TRUE.equals(isActive)) {
+            return room;
+        }
+
+        // Redis key가 없다면 DB의 endDate로 실제 만료 여부 확인
+        LocalDate today = LocalDate.now();
+
+        if (room.getEndDate().isBefore(today)) {
             throw ErrorCode.ROOM_EXPIRED.toException();
         }
 
-        return roomRepository.findById(roomId)
-                .orElseThrow(ErrorCode.ROOM_NOT_FOUND::toException);
+        // DB 기준으로 아직 활성화된 방이라면
+        // Redis key 복구
+        long daysUntilExpiry =
+                ChronoUnit.DAYS.between(today, room.getEndDate()) + 1;
+
+        redisTemplate.opsForValue().set(
+                redisKey,
+                "active",
+                daysUntilExpiry,
+                TimeUnit.DAYS
+        );
+
+        return room;
     }
 }
